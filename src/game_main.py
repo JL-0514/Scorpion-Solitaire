@@ -2,6 +2,8 @@
 A scorpion solitarie game.
 """
 
+import ctypes
+from Card import *
 from tkinter import *
 from PIL import Image, ImageTk
 
@@ -9,31 +11,13 @@ from PIL import Image, ImageTk
 ROOT = Tk()
 """ Game window """
 
-WIN_WIDTH = 710
+WIN_WIDTH = 940
 """ Width of the game window """
 
-WIN_HEIGHT = 600
+WIN_HEIGHT = 900
 """ Height of the game window """
 
-SCREEN_X = int(ROOT.winfo_screenwidth() / 2 - WIN_WIDTH / 2)
-""" X-coordinate of the top-left corner of the game window """
-
-SCREEN_Y = int(ROOT.winfo_screenheight() / 2 - WIN_HEIGHT / 2 - 40)
-""" Y-coordinate of the top-left corner of the game window """
-
-CARD_WIDTH = 80
-""" Width of playing cards """
-
-CARD_HEIGHT = 116
-""" Height of playing cards """
-
-CARD_X = 55
-""" The leftmost position a card can be placed """
-
-CARD_Y = 75
-""" The topmost position a card can be placed """
-
-BACKSIDE_IMAGE = ImageTk.PhotoImage(Image.open("playing_cards/backside.png")
+BACKSIDE_IMAGE = ImageTk.PhotoImage(Image.open("src/playing_cards/backside.png")
                                     .resize((CARD_WIDTH, CARD_HEIGHT), resample=Image.LANCZOS))
 """ Image of the back side of the playing card """
 
@@ -42,20 +26,6 @@ ALL_TYPES = ["club", "diamond", "heart", "spade"]
 
 ALL_VALUES = list(range(1, 14))
 """ All possible value of all types of card """
-
-
-class Card:
-    """
-    Represent a playing card
-    """
-    def __init__(self, type: str, value: int) -> None:
-        self.type = type
-        self.value = value
-        self.image = ImageTk.PhotoImage(Image.open(f"playing_cards/{type}{str(value)}.png")
-                                        .resize((CARD_WIDTH, CARD_HEIGHT), resample=Image.LANCZOS))
-        self.hidden = False
-        self.x = CARD_X
-        self.y = CARD_Y
 
 
 def deal_cards(cards: list[Card], stacks: list[list[Card]]) -> None:
@@ -74,7 +44,7 @@ def deal_cards(cards: list[Card], stacks: list[list[Card]]) -> None:
         c: list[Card] = stacks[i]
         for j in range(7):
             c[j].x = CARD_X + i * (CARD_WIDTH + 20)
-            c[j].y = CARD_Y + CARD_HEIGHT + (j + 1) * 20
+            c[j].y = CARD_Y + CARD_HEIGHT + (j + 1) * 30
         
 
 def display_cards(cards: list[Card], canvas: Canvas) -> None:
@@ -107,16 +77,22 @@ deal_cards(all_cards, card_stacks)
 # Set up game window
 ROOT.iconphoto(False, BACKSIDE_IMAGE)
 ROOT.title("Scorpion Solitaire")
-ROOT.geometry(F"{WIN_WIDTH}x{WIN_HEIGHT}+{SCREEN_X}+{SCREEN_Y}")
+ROOT.geometry(F"{WIN_WIDTH}x{WIN_HEIGHT}+40+40")
 ROOT.resizable(False, False)
 
+# Set up menu
+menu = Menu(ROOT)
+for x in ["New Game", "Restart", "Hint"]:
+    # TODO Add correct command
+    menu.add_command(label=x, command=None)
+ROOT["menu"] = menu
+
 # Set up canvas
-canvas_frame = Frame(ROOT)
-canvas_frame.pack(expand=True, fill=BOTH)
-canvas = Canvas(canvas_frame)
+canvas = Canvas(ROOT)
 canvas.pack(expand=True, fill=BOTH)
 canvas.config(background="#3B9212")
 
 display_cards(all_cards, canvas)
 
+ctypes.windll.shcore.SetProcessDpiAwareness(True)
 ROOT.mainloop()
