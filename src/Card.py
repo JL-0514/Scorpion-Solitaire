@@ -19,6 +19,7 @@ class Card:
     def __init__(self, type: str, value: int) -> None:
         self.type = type
         self.value = value
+        self.tag = type + str(value)
         self.image = ImageTk.PhotoImage(Image.open(f"src/playing_cards/{type}{str(value)}.png")
                                         .resize((CARD_WIDTH, CARD_HEIGHT), resample=Image.LANCZOS))
         self.hidden = False
