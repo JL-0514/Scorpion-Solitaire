@@ -22,27 +22,63 @@ BACKSIDE_IMAGE = ImageTk.PhotoImage(Image.open("src/playing_cards/backside.png")
                                     .resize((CARD_WIDTH, CARD_HEIGHT), resample=Image.LANCZOS))
 """ Image of the back side of the playing card """
 
-ALL_TYPES = ["club", "diamond", "heart", "spade"]
-""" All four types of card """
 
-ALL_VALUES = list(range(1, 14))
-""" All possible value of all types of card """
-
-
-def deal_cards(cards: list[Card], stacks: list[list[Card]], canvas: Canvas) -> None:
+def deal_cards(cards: list[Card], old_stacks: list[list[Card]], stacks: list[list[Card]], canvas: Canvas) -> None:
     """
-    Deal a list of cards. Shuffle cards into 7 stacks of cards while make sure 
-    there's at least one way to win the game.
+    Deal a list of cards and place them on canvas.
+    If old stacks in not empty, means it's restarting the game. In this case, use old atacks.
+    Else, shuffle cards.
     
     Parameters:
     - cards: a list of cards to deal
+    - old_stacks: a copy of card stacks at the beginning of the game
     - stacks: stacks of shuffled cards
     - canvas: canvas that display cards
     """
     # Create cards on canvas
     for card in cards:
             canvas.create_image(card.x, card.y, image=card.image, tag=card.tag)
+            
+    if len(old_stacks) > 0: 
+        for x in old_stacks: stacks.append(x.copy())
+    else: 
+        shuffle_cards(cards, stacks)
+        for x in stacks: old_stacks.append(x.copy())
     
+    # Place each card on its corresponding position.
+    # Horizontal gap between cards in a stack should shrink to fit the canvas when there's too many cards
+    for i in range(7):
+        cstack: list[Card] = stacks[i]
+        h_gap = 30 if len(cstack) < 15 else int(30 - CARD_WIDTH / len(cstack))
+        j = 0
+        prev = None
+        for card in cstack:
+            # Move card
+            old_x = card.x
+            old_y = card.y
+            card.x = CARD_X + i * (CARD_WIDTH + 20)
+            card.y = CARD_Y + CARD_HEIGHT + 30 + j * h_gap
+            # Make sure cards overlay each other correctly
+            canvas.move(card.tag, card.x - old_x, card.y - old_y)
+            canvas.tag_raise(card.tag, prev)
+            prev = card.tag
+            j += 1
+    
+    # Hide some cards by displaying the backside of the card
+    for i in [0, 1, 2, 3, 7]:
+        for card in stacks[i][:3]:
+            card.hidden = True
+            canvas.itemconfig(card.tag, image=BACKSIDE_IMAGE)
+
+
+def shuffle_cards(cards: list[Card], stacks: list[list[Card]]) -> None:
+    """
+    Shuffle cards into 7 stacks of cards while make sure there's at least one way to win the game.
+    
+    Parameters:
+    - cards: a list of cards to deal
+    - stacks: stacks of shuffled cards
+    """
     # Assign 4 types of cards into 4 stacks order from highest to lowest value
     for i in range(4):
         s = cards[i * 13 : (i + 1) * 13]
@@ -77,59 +113,37 @@ def deal_cards(cards: list[Card], stacks: list[list[Card]], canvas: Canvas) -> N
             stacks[i].extend(temp)
             for _ in range(len(temp)):
                 stacks[j].pop()
-            
-    
-    # Place each card on its corresponding position.
-    # Horizontal gap between cards in a stack should shrink to fit the canvas when there's too many cards
-    for i in range(7):
-        cstack: list[Card] = stacks[i]
-        h_gap = 30 if len(cstack) < 15 else int(30 - CARD_WIDTH / len(cstack))
-        j = 0
-        prev = None
-        for card in cstack:
-            # Move card
-            old_x = card.x
-            old_y = card.y
-            card.x = CARD_X + i * (CARD_WIDTH + 20)
-            card.y = CARD_Y + CARD_HEIGHT + 30 + j * h_gap
-            # Make sure cards overlay each other correctly
-            canvas.move(card.tag, card.x - old_x, card.y - old_y)
-            canvas.tag_raise(card.tag, prev)
-            prev = card.tag
-            j += 1
-    
-    # Hide some cards by displaying the backside of the card
-    for i in [0, 1, 2, 3, 7]:
-        for card in stacks[i][:3]:
-            card.hidden = True
-            canvas.itemconfig(card.tag, image=BACKSIDE_IMAGE)
 
 
-def new_game(cards: list[Card], stacks: list[list], canvas: Canvas):
+def new_or_restart(cards: list[Card], old_stacks: list, stacks: list, canvas: Canvas, new: bool) -> None:
     """
-    Start a new game.
+    Restart the current game or start a new game.
     
     Parameters:
     - cards: a list of cards to deal
+    - old_stacks: a copy of card stacks at the beginning of the game
     - stacks: stacks of shuffled cards
     - canvas: canvas that display cards
     """
     canvas.delete("all")
+    if new: old_stacks.clear()
     stacks.clear()
     for c in cards:
         c.x = CARD_X
         c.y = CARD_Y
         c.hidden = False
-    deal_cards(cards, stacks, canvas)
+    deal_cards(cards, old_stacks, stacks, canvas)
+    
 
 
 # --------------- Initialize playing cards ---------------
 
 all_cards: list[Card] = []
-for t in ALL_TYPES:
-    for v in ALL_VALUES[::-1]:
+for t in ["club", "diamond", "heart", "spade"]:
+    for v in range(1, 14):
         all_cards.append(Card(t, v))
-card_stacks: list[list[Card]] = []
+card_stacks = []
+init_stacks = []
 
 
 # --------------- Initialize game ---------------
@@ -148,9 +162,8 @@ canvas.create_image(CARD_X, CARD_Y, image=BACKSIDE_IMAGE)
 
 # Set up menu
 menu = Menu(ROOT)
-menu.add_command(label="New Game", command=lambda: new_game(all_cards, card_stacks, canvas))
-# TODO Implement restart feature
-menu.add_command(label="Restart", command=None)
+menu.add_command(label="New Game", command=lambda: new_or_restart(all_cards, init_stacks, card_stacks, canvas, True))
+menu.add_command(label="Restart", command=lambda: new_or_restart(all_cards, init_stacks, card_stacks, canvas, False))
 # TODO Implement undo feature
 menu.add_command(label="Undo", command=None)
 # TODO Implement hint feature
