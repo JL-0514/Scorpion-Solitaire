@@ -6,10 +6,10 @@ CARD_WIDTH = 110
 CARD_HEIGHT = 160
 """ Height of playing cards """
 
-CARD_X = 75
+CARD_X = 20
 """ The leftmost position a card can be placed """
 
-CARD_Y = 105
+CARD_Y = 20
 """ The topmost position a card can be placed """
 
 class Card:

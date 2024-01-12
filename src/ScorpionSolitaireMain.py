@@ -12,6 +12,8 @@ from random import randint
 from time import sleep
 
 
+# --------------- Constants ---------------
+
 ROOT = Tk()
 """ Game window """
 
@@ -25,8 +27,16 @@ BACKSIDE_IMAGE = ImageTk.PhotoImage(Image.open("src/playing_cards/backside.png")
                                     .resize((CARD_WIDTH, CARD_HEIGHT), resample=Image.LANCZOS))
 """ Image of the back side of the playing card """
 
-FRAME_RATE = 10
-""" Image move every n millionseconds when dealing cards """
+FRAME_RATE = 5
+""" Image move every n millionseconds when moving cards to destination position """
+
+
+# --------------- Global variables ---------------
+
+current_stack = -1
+current_card = -1
+has_remain = False
+started = False
 
 
 # --------------- Functions for shuffling cards ---------------
@@ -45,7 +55,7 @@ def deal_cards(cards: list[Card], old_stacks: list[list[Card]], stacks: list[lis
     """
     # Create cards on canvas
     for card in cards:
-            canvas.create_image(card.x, card.y, image=card.image, tag=card.tag)
+            canvas.create_image(card.x, card.y, image=card.image, tag=card.tag, anchor="nw")
     
     # Shuffle cards      
     if len(old_stacks) > 0: 
@@ -61,7 +71,9 @@ def deal_cards(cards: list[Card], old_stacks: list[list[Card]], stacks: list[lis
             canvas.itemconfig(card.tag, image=BACKSIDE_IMAGE)
     
     # Place cards on canvas
-    move_card(stacks, canvas, 0, 0, True)
+    for i in range(7):
+        for j in range(len(stacks[i])):
+            move_card(stacks[i][j], canvas, i, j, True)
 
 def shuffle_cards(cards: list[Card], stacks: list[list[Card]]) -> None:
     """
@@ -92,10 +104,16 @@ def shuffle_cards(cards: list[Card], stacks: list[list[Card]]) -> None:
                 for _ in range(len(stacks[j][s_idx:])):
                     stacks[j].pop()
     
-    # Make sure each stack have 7 cards at the end. Move extras to 8th stack
+    # Deal three cards to the 8th stack
+    for i in range(3):
+        j = i
+        while len(stacks[j]) == 0: j += 1
+        stacks[7].append(stacks[j].pop())
+    
+    # Make sure each stack have 7 cards at the end.
     for i in range(7):
         if len(stacks[i]) > 7:
-            stacks[7].extend(stacks[i][7:])
+            stacks[i + 1].extend(stacks[i][7:])
             for _ in range(len(stacks[i]) - 7):
                 stacks[i].pop()
         elif len(stacks[i]) < 7:
@@ -106,14 +124,17 @@ def shuffle_cards(cards: list[Card], stacks: list[list[Card]]) -> None:
             for _ in range(len(temp)):
                 stacks[j].pop()
 
-def move_card(stacks: list[list[Card]], canvas: Canvas, stack_idx: int, card_idx: int, new: bool,
+
+# --------------- Methods for moving cards ---------------
+
+def move_card(card: Card, canvas: Canvas, stack_idx: int, card_idx: int, new: bool,
               current_x: int = 0, current_y: int = 0, dest_x: int = 0, dest_y: int = 0, 
               move_x: int = 0, move_y: int = 0) -> None:
     """
     Place a card to its corresponding position.
     
     Parameters:
-    - stacks: stacks of cards.
+    - card: the card to move.
     - canvas: canvas that displays cards.
     - new: Whether it's staring to move a new card. If so, arguments after it need to be reassigned in the function.
     - stack_idx: which stack the card belongs to.
@@ -125,37 +146,63 @@ def move_card(stacks: list[list[Card]], canvas: Canvas, stack_idx: int, card_idx
     - move_x: how much should the card shift from its current position to the right in one move.
     - move_y: how much should the card shift from its current position to the bottom in one move.
     """
-    if stack_idx < 7:
-        card: Card = stacks[stack_idx][card_idx]
-        # Starting to move a new card
-        if new:
-            canvas.lift(card.tag)
-            current_x = card.x
-            current_y = card.y
-            card.x = dest_x = CARD_X + stack_idx * (CARD_WIDTH + 20)        # vertical gap = 20
-            card.y = dest_y = CARD_Y + CARD_HEIGHT + (card_idx + 1) * 30    # horizontal gap = 30
-            move_x = int((dest_x - current_x) / 5)
-            move_y = int((dest_y - current_y) / 5)
-        # Adjust the length of move for the last move of a card
-        if move_x > dest_x - current_x: move_x = dest_x - current_x
-        if move_y > dest_y - current_y: move_y = dest_y - current_y
-        # Move the card and update current position
-        canvas.move(card.tag, move_x, move_y)
-        current_x += move_x
-        current_y += move_y
-        # If finished moving current card
-        if current_x == dest_x and current_y == dest_y:
-            # Move to next stack
-            if card_idx == len(stacks[stack_idx]) - 1: 
-                canvas.after(FRAME_RATE, lambda: move_card(stacks, canvas, stack_idx + 1, 0, True))
-            # Move to next card in current stack
-            else:
-                canvas.after(FRAME_RATE, lambda: move_card(stacks, canvas, stack_idx, card_idx + 1, True))
-        # Continue to move current card
-        else:
-            canvas.after(FRAME_RATE, lambda: move_card(stacks, canvas, stack_idx, card_idx, False, current_x, current_y, 
-                                                       dest_x, dest_y, move_x, move_y))
-        
+    # Starting to move a new card
+    if new:
+        canvas.lift(card.tag)
+        current_x = card.x
+        current_y = card.y
+        card.x = dest_x = CARD_X + stack_idx * (CARD_WIDTH + 20)        # vertical gap = 20
+        card.y = dest_y = CARD_Y + CARD_HEIGHT + (card_idx + 1) * 30    # horizontal gap = 30
+        move_x = int((dest_x - current_x) / 20)
+        move_y = int((dest_y - current_y) / 20)
+    # Adjust the length of move for the last move of a card
+    if move_x > dest_x - current_x: move_x = dest_x - current_x
+    if move_y > dest_y - current_y: move_y = dest_y - current_y
+    # Move the card and update current position
+    canvas.move(card.tag, move_x, move_y)
+    current_x += move_x
+    current_y += move_y
+    # Continue to move card until the card is placed in its destination position
+    if current_x != dest_x or current_y != dest_y:
+        canvas.after(FRAME_RATE, lambda: move_card(card, canvas, stack_idx, card_idx, False, current_x, current_y, 
+                                                    dest_x, dest_y, move_x, move_y))
+
+def shrink_stack(stack: list[Card], canvas: Canvas, old_len: int, new_len: int) -> None:
+    pass
+
+def stretch_stack(stack: list[Card], canvas: Canvas, old_len: int, new_len: int) -> None:
+    pass
+
+def click_remaining(e, stacks: list[list[Card]], canvas: Canvas) -> None:
+    """
+    Action when the stack of remaining cards on the topleft corner is clicked.
+    
+    Parameters:
+    - e: mouse event
+    - stacks: stacks of all cards
+    - canvas: canvas that display cards
+    """
+    global started, has_remain
+    if started and has_remain and e.y >= CARD_Y and e.y <= CARD_Y + CARD_HEIGHT \
+            and e.x >= CARD_X and e.x <= CARD_X + CARD_WIDTH:
+        for i in reversed(range(3)):
+            c = stacks[7].pop()
+            stacks[i].append(c)
+            c.hidden = False
+            canvas.itemconfig(c.tag, image=c.image)
+            move_card(c, canvas, i, len(stacks[i]) - 1, True)
+            shrink_stack(stacks[i], canvas, len(stacks[i]) - 1, len(stacks[i]))
+        has_remain = False
+
+def click_card(e, stacks: list[list[Card]], canvas: Canvas):
+    global current_stack, current_card
+
+def drag_card(e, stacks: list[list[Card]], canvas: Canvas):
+    global current_stack, current_card
+
+def confirm_drag(e, stacks: list[list[Card]], canvas: Canvas):
+    global current_stack, current_card
+
 
 # --------------- Commands for the menu ---------------
 
@@ -169,6 +216,7 @@ def new_or_restart(cards: list[Card], old_stacks: list, stacks: list, canvas: Ca
     - stacks: stacks of shuffled cards
     - canvas: canvas that display cards
     """
+    global has_remain, started
     canvas.delete("all")
     if new: old_stacks.clear()
     stacks.clear()
@@ -177,6 +225,8 @@ def new_or_restart(cards: list[Card], old_stacks: list, stacks: list, canvas: Ca
         c.y = CARD_Y
         c.hidden = False
     deal_cards(cards, old_stacks, stacks, canvas)
+    has_remain = True
+    started = True
     
 
 def main() -> None:
@@ -198,22 +248,23 @@ def main() -> None:
     ROOT.resizable(False, False)
 
     # Set up canvas
-    canvas = Canvas(ROOT)
-    canvas.pack(expand=True, fill=BOTH)
-    canvas.config(background="#3B9212")
-    canvas.create_image(CARD_X, CARD_Y, image=BACKSIDE_IMAGE)
+    my_canvas = Canvas(ROOT)
+    my_canvas.pack(expand=True, fill=BOTH)
+    my_canvas.config(background="#3B9212")
+    my_canvas.bind("<Button-1>", lambda e: click_remaining(e, my_stacks, my_canvas))
+    my_canvas.create_image(CARD_X, CARD_Y, image=BACKSIDE_IMAGE, anchor="nw")
 
     # Set up menu
-    menu = Menu(ROOT)
-    menu.add_command(label="New Game", command=lambda: new_or_restart(my_cards, my_old_stacks, my_stacks, 
-                                                                      canvas, True))
-    menu.add_command(label="Restart", command=lambda: new_or_restart(my_cards, my_old_stacks, my_stacks, 
-                                                                     canvas, False))
+    my_menu = Menu(ROOT)
+    my_menu.add_command(label="New Game", command=lambda: new_or_restart(my_cards, my_old_stacks, my_stacks, 
+                                                                      my_canvas, True))
+    my_menu.add_command(label="Restart", command=lambda: new_or_restart(my_cards, my_old_stacks, my_stacks, 
+                                                                     my_canvas, False))
     # TODO Implement undo feature
-    menu.add_command(label="Undo", command=None)
+    my_menu.add_command(label="Undo", command=None)
     # TODO Implement hint feature
-    menu.add_command(label="Hint", command=None)
-    ROOT["menu"] = menu
+    my_menu.add_command(label="Hint", command=None)
+    ROOT["menu"] = my_menu
 
     ctypes.windll.shcore.SetProcessDpiAwareness(1)
     ROOT.mainloop()
