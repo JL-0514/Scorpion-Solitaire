@@ -9,7 +9,6 @@ from Card import *
 from tkinter import *
 from PIL import Image, ImageTk
 from random import randint
-from time import sleep
 
 
 # --------------- Constants ---------------
@@ -30,7 +29,8 @@ BACKSIDE_IMAGE = ImageTk.PhotoImage(Image.open("src/playing_cards/backside.png")
 FRAME_RATE = 5
 """ Image move every n millionseconds when moving cards to destination position """
 
-ALL_CARDS: list[Card] = [Card(t, v) for t in ["club", "diamond", "heart", "spade"] for v in reversed(range(1, 14))]
+ALL_CARDS: dict[str, Card] = {t + str(v): Card(t, v) for t in ["club", "diamond", "heart", "spade"] 
+                         for v in reversed(range(1, 14))}
 """ All playing cards that will be used in the game """
 
 
@@ -43,7 +43,6 @@ my_stacks: list[list[Card]] = []
 my_old_stacks: list[list[Card]] = []
 my_current_stack = -1
 my_current_card = -1
-my_has_remain = False
 my_started = False
 
 
@@ -56,7 +55,7 @@ def deal_cards() -> None:
     Else, shuffle cards.
     """   
     # Create cards on canvas
-    for card in ALL_CARDS:
+    for card in ALL_CARDS.values():
             my_canvas.create_image(card.x, card.y, image=card.image, tag=card.tag, anchor="nw")
             my_canvas.tag_bind(card.tag, "<Button-1>", click_card)
     
@@ -76,7 +75,7 @@ def deal_cards() -> None:
     # Place cards on canvas
     for i in range(7):
         for j in range(len(my_stacks[i])):
-            move_card(my_stacks[i][j], i, j, True)
+            move_card(my_stacks[i][j], True)
 
 def shuffle_cards() -> None:
     """
@@ -84,7 +83,7 @@ def shuffle_cards() -> None:
     """ 
     # Assign 4 types of cards into 4 stacks order from highest to lowest value
     for i in range(4):
-        s = ALL_CARDS[i * 13 : (i + 1) * 13]
+        s = list(ALL_CARDS.values())[i * 13 : (i + 1) * 13]
         my_stacks.append(s)
     my_stacks.extend([[], [], [], []])
     
@@ -122,11 +121,18 @@ def shuffle_cards() -> None:
             my_stacks[i].extend(temp)
             for _ in range(len(temp)):
                 my_stacks[j].pop()
-
+    
+    #Updating stack and card indexes for each card
+    for i in range(7):
+        for j in range(7):
+            c = my_stacks[i][j]
+            c.stack_idx = i
+            c.card_idx = j
+            
 
 # --------------- Functions for moving cards ---------------
 
-def move_card(card: Card, stack_idx: int, card_idx: int, new: bool, current_x: int = 0, current_y: int = 0, 
+def move_card(card: Card, new: bool, current_x: int = 0, current_y: int = 0, 
               dest_x: int = 0, dest_y: int = 0, move_x: int = 0, move_y: int = 0) -> None:
     """
     Place a card to its corresponding position.
@@ -134,8 +140,6 @@ def move_card(card: Card, stack_idx: int, card_idx: int, new: bool, current_x: i
     Parameters:
     - card: the card to move.
     - new: Whether it's staring to move a new card. If so, arguments after it need to be reassigned in the function.
-    - stack_idx: which stack the card belongs to.
-    - card_idx: which card in the stack it's currently moving.
     - current_x: current x coordinate of the card.
     - current_y: current y coordinate of the card.
     - dest_x: destination x coordinate of the card.
@@ -148,8 +152,8 @@ def move_card(card: Card, stack_idx: int, card_idx: int, new: bool, current_x: i
         my_canvas.lift(card.tag)
         current_x = card.x
         current_y = card.y
-        card.x = dest_x = CARD_X + stack_idx * (CARD_WIDTH + V_GAP)
-        card.y = dest_y = CARD_Y + CARD_HEIGHT + (card_idx + 1) * H_GAP
+        card.x = dest_x = CARD_X + card.stack_idx * (CARD_WIDTH + V_GAP)
+        card.y = dest_y = CARD_Y + CARD_HEIGHT + (card.card_idx + 1) * H_GAP
         move_x = int((dest_x - current_x) / 20)
         move_y = int((dest_y - current_y) / 20)
     # Adjust the length of move for the last move of a card
@@ -161,43 +165,78 @@ def move_card(card: Card, stack_idx: int, card_idx: int, new: bool, current_x: i
     current_y += move_y
     # Continue to move card until the card is placed in its destination position
     if current_x != dest_x or current_y != dest_y:
-        my_canvas.after(FRAME_RATE, lambda: move_card(card, stack_idx, card_idx, False, current_x, current_y, 
-                                                    dest_x, dest_y, move_x, move_y))
+        my_canvas.after(FRAME_RATE, 
+                        lambda: move_card(card, False, current_x, current_y, dest_x, dest_y, move_x, move_y))
 
-def shrink_stack(old_len: int, new_len: int) -> None:
-    pass
+def shrink_stack(stack_idx: int, old_len: int) -> None:
+    new_len = my_stacks[stack_idx]
+    if new_len != 0:
+        pass
 
-def stretch_stack(old_len: int, new_len: int) -> None:
-    pass
+def stretch_stack(stack_idx: int, old_len: int) -> None:
+    new_len = my_stacks[stack_idx]
+    if new_len != 0:
+        pass
 
 def click_remaining(e) -> None:
     """
     Action when the stack of remaining cards on the topleft corner is clicked.
-    
-    Parameters:
-    - e: mouse event
     """
-    global my_started, my_has_remain, my_stacks, my_canvas
-    if my_started and my_has_remain and e.y >= CARD_Y and e.y <= CARD_Y + CARD_HEIGHT \
+    if my_started and len(my_canvas.gettags("current")) > 1 and e.y >= CARD_Y and e.y <= CARD_Y + CARD_HEIGHT \
             and e.x >= CARD_X and e.x <= CARD_X + CARD_WIDTH:
         for i in reversed(range(3)):
             c = my_stacks[7].pop()
-            my_stacks[i].append(c)
             c.hidden = False
+            c.stack_idx = i
+            c.card_idx = len(my_stacks[i])
+            my_stacks[i].append(c)
             my_canvas.itemconfig(c.tag, image=c.image)
-            move_card(c, i, len(my_stacks[i]) - 1, True)
+            move_card(c, True)
             shrink_stack(len(my_stacks[i]) - 1, len(my_stacks[i]))
-        my_has_remain = False
 
 def click_card(e) -> None:
+    """
+    Check whether the clicked card is movable. If so, move the clicked card and cards below it
+    to the right stack.
+    There're two possible valid moves:
+    1. The last card in a stack (except for the stack of clicked card) has same type as clicked card
+       and has value exactly one greater than the clicked card.
+    2. The clicked card has value 13 and there's at least one empty stack. In this case,
+       move to the leftmost empty stack.
+    """
     if e.y > CARD_Y + CARD_HEIGHT + H_GAP:
-        current_tag = my_canvas.gettags("current")[0]
-        stack_idx: int = (e.x - CARD_X) // (CARD_WIDTH + V_GAP)
-        card_idx = 0
-        for c in my_stacks[stack_idx]:
-            if c.tag == current_tag: break
-            card_idx += 1
-        print(stack_idx, card_idx)
+        card = ALL_CARDS[my_canvas.gettags("current")[0]]
+        for i in range(7):
+            last = my_stacks[i][-1] if len(my_stacks[i]) > 0 else None
+            # Check for valid move
+            if (last != None and i != card.stack_idx and card.type == last.type and card.value == last.value - 1) \
+                    or (card.value == 13 and last == None):
+                old_stack = card.stack_idx
+                new_card_idx = len(my_stacks[i])
+                gap = last.y - my_stacks[i][-2].y if last != None and len(my_stacks[i]) > 1 else H_GAP
+                temp = my_stacks[card.stack_idx][card.card_idx:]
+                # Move cards to the right stack
+                for c in temp:
+                    my_stacks[old_stack].pop()
+                    c.stack_idx = i
+                    c.card_idx = new_card_idx
+                    my_canvas.lift(c.tag)
+                    dest_x = CARD_X + i * (CARD_WIDTH + V_GAP)
+                    dest_y = CARD_Y + CARD_HEIGHT + H_GAP + new_card_idx * gap
+                    my_canvas.move(c.tag, dest_x - c.x, dest_y - c.y)
+                    c.x = dest_x
+                    c.y = dest_y
+                    my_stacks[i].append(c)
+                    new_card_idx += 1
+                # Reveal the hidden card after move, if any
+                reveal = my_stacks[old_stack][-1] if len(my_stacks[old_stack]) > 0 else None
+                if reveal != None and reveal.hidden == True:
+                    reveal.hidden = False
+                    my_canvas.itemconfig(reveal.tag, image=reveal.image)
+                shrink_stack(i, len(my_stacks[i]) - len(temp))
+                stretch_stack(old_stack, len(my_stacks[old_stack]) + len(temp))
+                break
+                    
 
 def drag_card(e, stacks: list[list[Card]], canvas: Canvas):
     global my_current_stack, my_current_card
@@ -215,16 +254,15 @@ def new_or_restart(new: bool) -> None:
     Parameters:
     - new: whether the user is starting a new game.
     """
-    global my_has_remain, my_started
+    global my_started
     my_canvas.delete("all")
     if new: my_old_stacks.clear()
     my_stacks.clear()
-    for c in ALL_CARDS:
+    for c in ALL_CARDS.values():
         c.x = CARD_X
         c.y = CARD_Y
         c.hidden = False
     deal_cards()
-    my_has_remain = True
     my_started = True
     
 

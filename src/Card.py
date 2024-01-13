@@ -39,3 +39,5 @@ class Card:
         self.hidden = False
         self.x = CARD_X
         self.y = CARD_Y
+        self.stack_idx = -1
+        self.card_idx = -1
