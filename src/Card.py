@@ -12,11 +12,25 @@ CARD_X = 20
 CARD_Y = 20
 """ The topmost position a card can be placed """
 
+V_GAP = 20
+""" Vertical gap between different stacks of cards """
+
+H_GAP = 30
+""" Initial horizontal gap between the top of each cards """
+
 class Card:
     """
     Represent a playing card
     """
+    
     def __init__(self, type: str, value: int) -> None:
+        """
+        Create a playing card based in the given type and value.
+        
+        Parameters:
+        - type: type of the card (club, diamong, heart, or spade)
+        - value: value of the card (1 to 13)
+        """
         self.type = type
         self.value = value
         self.tag = type + str(value)
