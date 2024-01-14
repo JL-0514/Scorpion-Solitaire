@@ -10,7 +10,6 @@ from CardSet import *
 from GameCanvas import *
 from tkinter import *
 from PIL import Image, ImageTk
-from random import randint
 
 
 # --------------- Constants ---------------
@@ -29,7 +28,7 @@ BACKSIDE_IMAGE = ImageTk.PhotoImage(Image.open("src/playing_cards/backside.png")
 """ Image of the back side of the playing card """
 
 ALL_CARDS: dict[str, Card] = {t + str(v): Card(t, v) for t in ["club", "diamond", "heart", "spade"] 
-                         for v in reversed(range(1, 14))}
+                         for v in range(1, 14)}
 """ All playing cards that will be used in the game """
 
 
@@ -86,15 +85,14 @@ def click_remaining(e) -> None:
     """
     Action when the stack of remaining cards on the topleft corner is clicked.
     """
-    if my_started and len(my_canvas.gettags("current")) > 1 and e.y >= CARD_Y and e.y <= CARD_Y + CARD_HEIGHT \
-            and e.x >= CARD_X and e.x <= CARD_X + CARD_WIDTH:
+    if my_started and len(my_cards.stacks[7]) == 3 and  len(my_canvas.gettags("current")) > 1 \
+            and e.y >= CARD_Y and e.y <= CARD_Y + CARD_HEIGHT and e.x >= CARD_X and e.x <= CARD_X + CARD_WIDTH:
         for i in reversed(range(3)):
             c = my_cards.stacks[7][i]
             c.hidden = False
             my_canvas.itemconfig(c.tag, image=c.image)
             my_cards.switch_stack(7, i, 1)
             my_canvas.start_move_card(c)
-            shrink_stack(len(my_cards.stacks[i]) - 1, len(my_cards.stacks[i]))
 
 def click_card(e) -> None:
     """
@@ -114,6 +112,7 @@ def click_card(e) -> None:
             if (last != None and i != card.stack_idx and card.type == last.type and card.value == last.value - 1) \
                     or (card.value == 13 and last == None):
                 old_stack = card.stack_idx
+                old_length = len(my_cards.stacks[i])
                 gap = last.y - my_cards.stacks[i][-2].y if last != None and len(my_cards.stacks[i]) > 1 else H_GAP
                 temp = my_cards.stacks[old_stack][card.card_idx:]
                 # Move cards to the right stack
@@ -125,17 +124,31 @@ def click_card(e) -> None:
                 if reveal != None and reveal.hidden == True:
                     reveal.hidden = False
                     my_canvas.itemconfig(reveal.tag, image=reveal.image)
+                check_win(i)
                 # Stretch or shrink stacks to fit window
-                shrink_stack(i, len(my_cards.stacks[i]) - len(temp))
+                shrink_stack(i, old_length)
                 stretch_stack(old_stack, len(my_cards.stacks[old_stack]) + len(temp))
                 break
                     
-
 def drag_card(e, stacks: list[list[Card]], canvas: Canvas):
     global my_current_stack, my_current_card
 
 def confirm_drag(e, stacks: list[list[Card]], canvas: Canvas):
     global my_current_stack, my_current_card
+
+def check_win(stack_idx: int) -> None:
+    """
+    If there's a completed set of cards in a stack, collect them and move them to top-right area.
+    If win the game, notify the users.
+    
+    Parameters:
+    - stack_idx: the index of stack to be checked
+    """
+    if my_cards.check_stack(stack_idx): 
+        my_canvas.collect_finished(my_cards.win_stacks[-1], len(my_cards.win_stacks))
+    if len(my_cards.win_stacks) == 4:
+        # TODO Notify user for winning game
+        print("WIN")
 
 
 # --------------- Commands for the menu ---------------
@@ -149,10 +162,6 @@ def new_or_restart(new: bool) -> None:
     """
     global my_started
     my_cards.reset(new)
-    for c in ALL_CARDS.values():
-        c.x = CARD_X
-        c.y = CARD_Y
-        c.hidden = False
     deal_cards()
     my_started = True
     

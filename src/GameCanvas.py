@@ -1,7 +1,7 @@
 from Card import *
-from tkinter import Canvas, Tk, BOTH
+from tkinter import Canvas, Tk
 
-FRAME_RATE = 5
+FRAME_RATE = 10
 """ Image move every n millionseconds when moving cards to destination position """
 
 class GameCanvas(Canvas):
@@ -42,12 +42,19 @@ class GameCanvas(Canvas):
         self.lift(card.tag)
         dest_x = CARD_X + card.stack_idx * (CARD_WIDTH + V_GAP)
         dest_y = CARD_Y + CARD_HEIGHT + (card.card_idx + 1) * h_gap
-        move_x = (dest_x - card.x) // 20
-        move_y = (dest_y - card.y) // 20
+        move_x = (dest_x - card.x) // FRAME_RATE
+        move_y = (dest_y - card.y) // FRAME_RATE
         self.move_card(card, dest_x, dest_y, move_x, move_y)
     
+    # BUG The last card in a stack does move correctly
     def collect_finished(self, cards: list[Card], num: int) -> None:
-        pass
+        dest_x = CARD_X + (2 + num) * (CARD_WIDTH + V_GAP)
+        for card in cards:
+            self.tag_unbind(card.tag, "<Button-1>")
+            move_x = (dest_x - card.x) // FRAME_RATE
+            move_y = (CARD_Y - card.y) // FRAME_RATE
+            self.lift(card.tag)
+            self.move_card(card, dest_x, CARD_Y, move_x, move_y)
     
     def move_card(self, card: Card, dest_x: int, dest_y: int, move_x: int, move_y: int) -> None:
         """
