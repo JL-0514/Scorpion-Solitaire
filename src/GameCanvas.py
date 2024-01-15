@@ -18,7 +18,7 @@ class GameCanvas(Canvas):
         """
         super().__init__(root)
     
-    def create_cards(self, cards:list[Card], action=None) -> None:
+    def create_cards(self, cards:list[Card], clicked=None) -> None:
         """
         Create a list of cards on the canvas
         
@@ -29,7 +29,7 @@ class GameCanvas(Canvas):
         self.delete("all")
         for card in cards:
             self.create_image(card.x, card.y, image=card.image, tag=card.tag, anchor="nw")
-            self.tag_bind(card.tag, "<Button-1>", action)
+            self.tag_bind(card.tag, "<Button-1>", clicked)
     
     def start_move_card(self, card: Card, h_gap:int=H_GAP) -> None:
         """

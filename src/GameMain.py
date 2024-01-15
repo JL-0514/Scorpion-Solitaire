@@ -40,8 +40,8 @@ my_menu = Menu(ROOT)
 """ Menu on the top """
 my_cards: CardSet = CardSet(ALL_CARDS)
 """ A card set that contains all cards used in the game """
-my_current_stack = -1
-my_current_card = -1
+my_closet: str = None
+""" The tag of the card closest to the mouse """
 my_started = False
 """ Whether the game has started """
 
@@ -75,6 +75,22 @@ def deal_cards() -> None:
     for i in range(7):
         for j in range(len(my_cards.stacks[i])):
             my_canvas.start_move_card(my_cards.stacks[i][j])
+
+def shift_card(e) -> None:
+    """
+    Shift the card up when the mouse hovering the card, and down when leave.
+    """
+    global my_closet
+    tags = my_canvas.gettags("current")
+    different_card = len(tags) > 1 and tags[0] != my_closet
+    # Shift previous card down
+    if my_closet != None and (different_card or len(tags) < 2):
+        my_canvas.move(my_closet, 0, H_GAP)
+        my_closet = None
+    # shift next card up
+    if len(tags) > 1 and different_card and not ALL_CARDS[tags[0]].hidden:
+        my_closet = tags[0]
+        my_canvas.move(my_closet, 0, -H_GAP)
 
 def shrink_stack(stack_idx: int, old_len: int) -> None:
     new_len = my_cards.stacks[stack_idx]
@@ -126,7 +142,7 @@ def click_card(e) -> None:
                     my_canvas.start_move_card(c, gap)
                 # Reveal the hidden card after move, if any
                 reveal = my_cards.stacks[old_stack][-1] if len(my_cards.stacks[old_stack]) > 0 else None
-                if reveal != None and reveal.hidden == True:
+                if reveal != None and reveal.hidden:
                     reveal.hidden = False
                     my_canvas.itemconfig(reveal.tag, image=reveal.image)
                 check_win(i)
@@ -136,10 +152,10 @@ def click_card(e) -> None:
                 break
                     
 def drag_card(e, stacks: list[list[Card]], canvas: Canvas) -> None:
-    global my_current_stack, my_current_card
+    pass
 
 def confirm_drag(e, stacks: list[list[Card]], canvas: Canvas) -> None:
-    global my_current_stack, my_current_card
+    pass
 
 def check_win(stack_idx: int) -> None:
     """
@@ -183,6 +199,7 @@ def main() -> None:
     my_canvas.pack(expand=True, fill=BOTH)
     my_canvas.config(background="#3B9212")
     my_canvas.bind("<Button-1>", click_remaining)
+    my_canvas.bind("<Motion>", shift_card)
     my_canvas.create_image(CARD_X, CARD_Y, image=BACKSIDE_IMAGE, anchor="nw")
 
     # Set up menu
