@@ -31,6 +31,9 @@ ALL_CARDS: dict[str, Card] = {t + str(v): Card(t, v) for t in ["club", "diamond"
                          for v in range(1, 14)}
 """ All playing cards that will be used in the game """
 
+MAX_IN_STACK = 16
+""" Maximum number of visible cards in a stack without shrinking the stack """
+
 
 # --------------- Global variables ---------------
 
@@ -63,8 +66,8 @@ def deal_cards() -> None:
     if len(my_cards.old_stacks) > 0: 
         for x in my_cards.old_stacks: my_cards.stacks.append(x.copy())
     else: 
-        #my_cards.shuffle_cards()
-        my_cards.test_shuffle()
+        my_cards.shuffle_cards()
+        #my_cards.test_shuffle()
         for x in my_cards.stacks: my_cards.old_stacks.append(x.copy())
         
     # Hide some cards by displaying the backside of the card
@@ -98,14 +101,31 @@ def shift_card(e, clicked=False) -> None:
         ALL_CARDS[my_closet].move_id = my_canvas.move(my_closet, 0, -(H_GAP - 5))
 
 def shrink_stack(stack_idx: int, old_len: int) -> None:
+    """
+    Shrink the stack when some cards are moved to the stack and the number of cards is greater than
+    maximum visible number.
+    
+    Parameters:
+    - stack_idx: the index of the stack to shrink
+    - old_len: the length of the stack cards are moved
+    """
     new_len = len(my_cards.stacks[stack_idx])
-    if new_len > 1:
-        pass
+    if new_len > MAX_IN_STACK and new_len > old_len:
+        gap = (H_GAP * MAX_IN_STACK) // new_len
+        for c in my_cards.stacks[stack_idx]: my_canvas.start_move_card(c, gap)
 
 def stretch_stack(stack_idx: int, old_len: int) -> None:
+    """
+    Stretch the stack when some cards are moved to another stack, if the stack is shrinked.
+    
+    Parameters:
+    - stack_idx: the index of the stack to stretch
+    - old_len: the length of the stack cards are moved
+    """
     new_len = len(my_cards.stacks[stack_idx])
-    if new_len > 1:
-        pass
+    if new_len > 1 and new_len < old_len and old_len > MAX_IN_STACK:
+        gap = (H_GAP * MAX_IN_STACK) // new_len if new_len > MAX_IN_STACK else H_GAP
+        for c in my_cards.stacks[stack_idx]: my_canvas.start_move_card(c, gap)
 
 def click_remaining(e) -> None:
     """
@@ -118,8 +138,10 @@ def click_remaining(e) -> None:
             c.hidden = False
             my_canvas.itemconfig(c.tag, image=c.image)
             my_cards.switch_stack(7, i, 1)
-            my_canvas.start_move_card(c)
-            stretch_stack(i, len(my_cards.stacks[i]) - 1)
+            gap = (H_GAP * MAX_IN_STACK) // len(my_cards.stacks[i]) \
+                if len(my_cards.stacks[i]) > MAX_IN_STACK else H_GAP
+            my_canvas.start_move_card(c, gap)
+            shrink_stack(i, len(my_cards.stacks[i]) - 1)
 
 def click_card(e) -> None:
     """
@@ -131,32 +153,34 @@ def click_card(e) -> None:
     2. The clicked card has value 13 and there's at least one empty stack. In this case,
        move to the leftmost empty stack.
     """
-    if e.y > CARD_Y + CARD_HEIGHT + H_GAP:
+    if e.y > CARD_Y + CARD_HEIGHT:
         card = ALL_CARDS[my_canvas.gettags("current")[0]]
-        for i in range(7):
-            last = my_cards.stacks[i][-1] if len(my_cards.stacks[i]) > 0 else None
-            # Check for valid move
-            if (last != None and i != card.stack_idx and card.type == last.type and card.value == last.value - 1) \
-                    or (card.value == 13 and last == None):
-                old_stack = card.stack_idx
-                old_length = len(my_cards.stacks[i])
-                gap = last.y - my_cards.stacks[i][-2].y if last != None and len(my_cards.stacks[i]) > 1 else H_GAP
-                temp = my_cards.stacks[old_stack][card.card_idx:]
-                # Move cards to the right stack
-                my_cards.switch_stack(old_stack, i, len(temp))
-                shift_card(None, True)
-                for c in temp: 
-                    my_canvas.start_move_card(c, gap)
-                # Reveal the hidden card after move, if any
-                reveal = my_cards.stacks[old_stack][-1] if len(my_cards.stacks[old_stack]) > 0 else None
-                if reveal != None and reveal.hidden:
-                    reveal.hidden = False
-                    my_canvas.itemconfig(reveal.tag, image=reveal.image)
-                # Stretch or shrink stacks to fit window
-                shrink_stack(i, old_length)
-                stretch_stack(old_stack, len(my_cards.stacks[old_stack]) + len(temp))
-                check_win(i)
-                break
+        target = ALL_CARDS[card.type + str(card.value + 1)] if card.value != 13 else None
+        first_empty = 0
+        while len(my_cards.stacks[first_empty]) != 0 and first_empty < 7: first_empty += 1
+        if (target != None and not target.hidden and target.stack_idx != card.stack_idx \
+                and target.card_idx == len(my_cards.stacks[target.stack_idx]) - 1) \
+                or (card.value == 13 and first_empty < 7):
+            old_s = card.stack_idx
+            new_s = target.stack_idx if target != None else first_empty
+            length = len(my_cards.stacks[new_s])
+            gap = (H_GAP * MAX_IN_STACK) // len(my_cards.stacks[new_s]) \
+                if len(my_cards.stacks[new_s]) > MAX_IN_STACK else H_GAP
+            temp = my_cards.stacks[old_s][card.card_idx:]
+            # Move cards to the right stack
+            my_cards.switch_stack(old_s, new_s, len(temp))
+            shift_card(None, True)
+            for c in temp: 
+                my_canvas.start_move_card(c, gap)
+            # Reveal the hidden card after move, if any
+            reveal = my_cards.stacks[old_s][-1] if len(my_cards.stacks[old_s]) > 0 else None
+            if reveal != None and reveal.hidden:
+                reveal.hidden = False
+                my_canvas.itemconfig(reveal.tag, image=reveal.image)
+            # Stretch or shrink stacks to fit window
+            shrink_stack(new_s, length)
+            stretch_stack(old_s, len(my_cards.stacks[old_s]) + len(temp))
+            check_win(new_s)
                     
 def drag_card(e) -> None:
     global my_dragging

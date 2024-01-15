@@ -44,7 +44,7 @@ class GameCanvas(Canvas):
         if card.move_id != None: self.after_cancel(card.move_id)
         self.lift(card.tag)
         dest_x = CARD_X + card.stack_idx * (CARD_WIDTH + V_GAP)
-        dest_y = CARD_Y + CARD_HEIGHT + (card.card_idx + 1) * h_gap
+        dest_y = CARD_Y + CARD_HEIGHT + H_GAP + card.card_idx * h_gap
         move_x = (dest_x - card.x) // FRAME_RATE
         move_y = (dest_y - card.y) // FRAME_RATE
         self.move_card(card, dest_x, dest_y, move_x, move_y)
