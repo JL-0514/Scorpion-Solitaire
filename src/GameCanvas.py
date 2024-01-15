@@ -39,6 +39,7 @@ class GameCanvas(Canvas):
         - card: the card to move.
         - h_gap: the horizontal gap between the top of each card on a stack
         """
+        if card.move_id != None: self.after_cancel(card.move_id)
         self.lift(card.tag)
         dest_x = CARD_X + card.stack_idx * (CARD_WIDTH + V_GAP)
         dest_y = CARD_Y + CARD_HEIGHT + (card.card_idx + 1) * h_gap
@@ -46,10 +47,17 @@ class GameCanvas(Canvas):
         move_y = (dest_y - card.y) // FRAME_RATE
         self.move_card(card, dest_x, dest_y, move_x, move_y)
     
-    # BUG The last card in a stack does move correctly
     def collect_finished(self, cards: list[Card], num: int) -> None:
+        """
+        Collect a completed set of cards by moving them to top-right area.
+        
+        Parameters:
+        - cards: completed set of cards
+        - num: the number of completed set used to calculate destination
+        """
         dest_x = CARD_X + (2 + num) * (CARD_WIDTH + V_GAP)
         for card in cards:
+            if card.move_id != None: self.after_cancel(card.move_id)
             self.tag_unbind(card.tag, "<Button-1>")
             move_x = (dest_x - card.x) // FRAME_RATE
             move_y = (CARD_Y - card.y) // FRAME_RATE
@@ -68,12 +76,16 @@ class GameCanvas(Canvas):
         - move_y: how much should the card shift from its current position to the bottom in one move.
         """
         # Adjust the length of move for the last move of a card
-        if abs(move_x) > abs(dest_x - card.x): move_x = dest_x - card.x
-        if abs(move_y) > abs(dest_y - card.y): move_y = dest_y - card.y
+        if move_x != 0 and card.x == dest_x: move_x = 0
+        elif abs(move_x) > abs(dest_x - card.x): move_x = dest_x - card.x
+        if move_y != 0 and card.y == dest_y: move_y = 0
+        elif abs(move_y) > abs(dest_y - card.y): move_y = dest_y - card.y
         # Move the card and update current position
         self.move(card.tag, move_x, move_y)
         card.x += move_x
         card.y += move_y
         # Continue to move card until the card is placed in its destination position
         if card.x != dest_x or card.y != dest_y:
-            self.after(FRAME_RATE, lambda: self.move_card(card, dest_x, dest_y, move_x, move_y))
+            card.move_id = self.after(FRAME_RATE, lambda: self.move_card(card, dest_x, dest_y, move_x, move_y))
+        else:
+            card.move_id = None

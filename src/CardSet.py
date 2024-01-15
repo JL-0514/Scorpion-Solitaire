@@ -14,9 +14,13 @@ class CardSet:
         - cards: predefined cards with images
         """
         self.cards = cards
+        """ All cards with tags """
         self.stacks: list[list[Card]] = []
+        """ Card stacks used to organize cards during the game """
         self.old_stacks: list[list[Card]] = []
-        self.win_stacks: list[list[Card]] = []
+        """ A copy of the stacks at the beginning of the game """
+        self.win_set: list[list[Card]] = []
+        """ Completed set of cards """
         
     def switch_stack(self, src: int, dest: int, length: int) -> None:
         """
@@ -35,6 +39,16 @@ class CardSet:
             temp[i].stack_idx = dest
             temp[i].card_idx = c_idx
             c_idx += 1
+
+    def test_shuffle(self) -> None:
+        for i in range(4):
+            s = list(self.cards.values())[i * 13 : (i + 1) * 13]
+            for c in s: c.stack_idx = i
+            self.stacks.append(s)
+        self.stacks.extend([[], [], [], []])
+        for i in range(3):
+            self.switch_stack(i, 7, 1)
+        self.switch_stack(3, 4, 1)
 
     def shuffle_cards(self) -> None:
         """
@@ -95,7 +109,7 @@ class CardSet:
                 v -= 1
             # Collect set
             if finished:
-                self.win_stacks.append(s)
+                self.win_set.append(s)
                 for _ in range(len(s)): self.stacks[stack_idx].pop()
         return finished
     
@@ -107,7 +121,7 @@ class CardSet:
         - new: whether the user is starting a new game.
         """
         self.stacks.clear()
-        self.win_stacks.clear()
+        self.win_set.clear()
         for c in self.cards.values():
             c.x = CARD_X
             c.y = CARD_Y
@@ -119,7 +133,7 @@ class CardSet:
                 c.stack_idx = c.value - 1
         else:       # Restarting the current game
             for i in range(7):
-                for j in range(7):
+                for j in range(len(self.old_stacks[i])):
                     c = self.old_stacks[i][j]
                     c.stack_idx = i
                     c.card_idx = j

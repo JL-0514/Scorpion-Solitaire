@@ -35,11 +35,15 @@ ALL_CARDS: dict[str, Card] = {t + str(v): Card(t, v) for t in ["club", "diamond"
 # --------------- Global variables ---------------
 
 my_canvas = GameCanvas(ROOT)
+""" Canvas the display cards """
 my_menu = Menu(ROOT)
+""" Menu on the top """
 my_cards: CardSet = CardSet(ALL_CARDS)
+""" A card set that contains all cards used in the game """
 my_current_stack = -1
 my_current_card = -1
 my_started = False
+""" Whether the game has started """
 
 
 # --------------- Functions ---------------
@@ -58,6 +62,7 @@ def deal_cards() -> None:
         for x in my_cards.old_stacks: my_cards.stacks.append(x.copy())
     else: 
         my_cards.shuffle_cards()
+        #my_cards.test_shuffle()
         for x in my_cards.stacks: my_cards.old_stacks.append(x.copy())
         
     # Hide some cards by displaying the backside of the card
@@ -130,10 +135,10 @@ def click_card(e) -> None:
                 stretch_stack(old_stack, len(my_cards.stacks[old_stack]) + len(temp))
                 break
                     
-def drag_card(e, stacks: list[list[Card]], canvas: Canvas):
+def drag_card(e, stacks: list[list[Card]], canvas: Canvas) -> None:
     global my_current_stack, my_current_card
 
-def confirm_drag(e, stacks: list[list[Card]], canvas: Canvas):
+def confirm_drag(e, stacks: list[list[Card]], canvas: Canvas) -> None:
     global my_current_stack, my_current_card
 
 def check_win(stack_idx: int) -> None:
@@ -145,8 +150,8 @@ def check_win(stack_idx: int) -> None:
     - stack_idx: the index of stack to be checked
     """
     if my_cards.check_stack(stack_idx): 
-        my_canvas.collect_finished(my_cards.win_stacks[-1], len(my_cards.win_stacks))
-    if len(my_cards.win_stacks) == 4:
+        my_canvas.collect_finished(my_cards.win_set[-1], len(my_cards.win_set))
+    if len(my_cards.win_set) == 4:
         # TODO Notify user for winning game
         print("WIN")
 
