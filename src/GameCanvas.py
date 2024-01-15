@@ -18,7 +18,7 @@ class GameCanvas(Canvas):
         """
         super().__init__(root)
     
-    def create_cards(self, cards:list[Card], clicked=None) -> None:
+    def create_cards(self, cards:list[Card], clicked=None, drag=None, release=None) -> None:
         """
         Create a list of cards on the canvas
         
@@ -30,6 +30,8 @@ class GameCanvas(Canvas):
         for card in cards:
             self.create_image(card.x, card.y, image=card.image, tag=card.tag, anchor="nw")
             self.tag_bind(card.tag, "<Button-1>", clicked)
+            self.tag_bind(card.tag, "<B1-Motion>", drag)
+            self.tag_bind(card.tag, "<ButtonRelease-1>", release)
     
     def start_move_card(self, card: Card, h_gap:int=H_GAP) -> None:
         """
@@ -57,8 +59,9 @@ class GameCanvas(Canvas):
         """
         dest_x = CARD_X + (2 + num) * (CARD_WIDTH + V_GAP)
         for card in cards:
-            if card.move_id != None: self.after_cancel(card.move_id)
             self.tag_unbind(card.tag, "<Button-1>")
+            if card.move_id != None: self.after_cancel(card.move_id)
+            card.hidden = True
             move_x = (dest_x - card.x) // FRAME_RATE
             move_y = (CARD_Y - card.y) // FRAME_RATE
             self.lift(card.tag)

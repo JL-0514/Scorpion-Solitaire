@@ -19,8 +19,8 @@ class CardSet:
         """ Card stacks used to organize cards during the game """
         self.old_stacks: list[list[Card]] = []
         """ A copy of the stacks at the beginning of the game """
-        self.win_set: list[list[Card]] = []
-        """ Completed set of cards """
+        self.win_num: int = 0
+        """ Number of completed set of cards """
         
     def switch_stack(self, src: int, dest: int, length: int) -> None:
         """
@@ -45,7 +45,7 @@ class CardSet:
             s = list(self.cards.values())[i * 13 : (i + 1) * 13]
             for c in s: c.stack_idx = i
             self.stacks.append(s)
-        self.stacks.extend([[], [], [], []])
+        self.stacks.extend([[], [], [], [], [], [], [], []])
         for i in range(3):
             self.switch_stack(i, 7, 1)
         self.switch_stack(3, 4, 1)
@@ -59,7 +59,7 @@ class CardSet:
             s = list(self.cards.values())[i * 13 : (i + 1) * 13]
             for c in s: c.stack_idx = i
             self.stacks.append(s)
-        self.stacks.extend([[], [], [], []])
+        self.stacks.extend([[], [], [], [], [], [], [], []])
         
         # Shuffle cards into 7 stacks by removing some cards from the end of a stack add them to another stack,
         # but leave at least one card on each stack
@@ -119,8 +119,8 @@ class CardSet:
                 v -= 1
             # Collect set
             if finished:
-                self.win_set.append(s)
-                for _ in range(len(s)): self.stacks[stack_idx].pop()
+                self.win_num += 1
+                self.switch_stack(stack_idx, self.win_num + 7, 13)
         return finished
     
     def reset(self, new: bool) -> None:
@@ -131,7 +131,7 @@ class CardSet:
         - new: whether the user is starting a new game.
         """
         self.stacks.clear()
-        self.win_set.clear()
+        self.win_num = 0
         for c in self.cards.values():
             c.x = CARD_X
             c.y = CARD_Y

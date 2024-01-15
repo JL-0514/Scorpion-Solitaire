@@ -42,6 +42,8 @@ my_cards: CardSet = CardSet(ALL_CARDS)
 """ A card set that contains all cards used in the game """
 my_closet: str = None
 """ The tag of the card closest to the mouse """
+my_dragging = False
+""" Whether the user is dragging cards """
 my_started = False
 """ Whether the game has started """
 
@@ -55,14 +57,14 @@ def deal_cards() -> None:
     Else, shuffle cards.
     """   
     # Create cards on canvas
-    my_canvas.create_cards(ALL_CARDS.values(), click_card)
+    my_canvas.create_cards(ALL_CARDS.values(), click_card, drag_card, confirm_drag)
     
     # Shuffle cards      
     if len(my_cards.old_stacks) > 0: 
         for x in my_cards.old_stacks: my_cards.stacks.append(x.copy())
     else: 
-        my_cards.shuffle_cards()
-        #my_cards.test_shuffle()
+        #my_cards.shuffle_cards()
+        my_cards.test_shuffle()
         for x in my_cards.stacks: my_cards.old_stacks.append(x.copy())
         
     # Hide some cards by displaying the backside of the card
@@ -76,30 +78,33 @@ def deal_cards() -> None:
         for j in range(len(my_cards.stacks[i])):
             my_canvas.start_move_card(my_cards.stacks[i][j])
 
-def shift_card(e) -> None:
+def shift_card(e, clicked=False) -> None:
     """
     Shift the card up when the mouse hovering the card, and down when leave.
+    
+    Parameters:
+    - clicked: whether the card is clicked and is moving to another stack. In this case, always shift down.
     """
     global my_closet
     tags = my_canvas.gettags("current")
     different_card = len(tags) > 1 and tags[0] != my_closet
     # Shift previous card down
-    if my_closet != None and (different_card or len(tags) < 2):
-        my_canvas.move(my_closet, 0, H_GAP)
+    if clicked or (my_closet != None and (different_card or len(tags) < 2)):
+        ALL_CARDS[my_closet].move_id = my_canvas.move(my_closet, 0, H_GAP - 5)
         my_closet = None
     # shift next card up
     if len(tags) > 1 and different_card and not ALL_CARDS[tags[0]].hidden:
         my_closet = tags[0]
-        my_canvas.move(my_closet, 0, -H_GAP)
+        ALL_CARDS[my_closet].move_id = my_canvas.move(my_closet, 0, -(H_GAP - 5))
 
 def shrink_stack(stack_idx: int, old_len: int) -> None:
-    new_len = my_cards.stacks[stack_idx]
-    if new_len != 0:
+    new_len = len(my_cards.stacks[stack_idx])
+    if new_len > 1:
         pass
 
 def stretch_stack(stack_idx: int, old_len: int) -> None:
-    new_len = my_cards.stacks[stack_idx]
-    if new_len != 0:
+    new_len = len(my_cards.stacks[stack_idx])
+    if new_len > 1:
         pass
 
 def click_remaining(e) -> None:
@@ -114,6 +119,7 @@ def click_remaining(e) -> None:
             my_canvas.itemconfig(c.tag, image=c.image)
             my_cards.switch_stack(7, i, 1)
             my_canvas.start_move_card(c)
+            stretch_stack(i, len(my_cards.stacks[i]) - 1)
 
 def click_card(e) -> None:
     """
@@ -138,6 +144,7 @@ def click_card(e) -> None:
                 temp = my_cards.stacks[old_stack][card.card_idx:]
                 # Move cards to the right stack
                 my_cards.switch_stack(old_stack, i, len(temp))
+                shift_card(None, True)
                 for c in temp: 
                     my_canvas.start_move_card(c, gap)
                 # Reveal the hidden card after move, if any
@@ -145,17 +152,20 @@ def click_card(e) -> None:
                 if reveal != None and reveal.hidden:
                     reveal.hidden = False
                     my_canvas.itemconfig(reveal.tag, image=reveal.image)
-                check_win(i)
                 # Stretch or shrink stacks to fit window
                 shrink_stack(i, old_length)
                 stretch_stack(old_stack, len(my_cards.stacks[old_stack]) + len(temp))
+                check_win(i)
                 break
                     
-def drag_card(e, stacks: list[list[Card]], canvas: Canvas) -> None:
-    pass
+def drag_card(e) -> None:
+    global my_dragging
+    my_dragging = True
 
-def confirm_drag(e, stacks: list[list[Card]], canvas: Canvas) -> None:
-    pass
+def confirm_drag(e) -> None:
+    global my_dragging
+    if my_dragging:
+        my_dragging = False
 
 def check_win(stack_idx: int) -> None:
     """
@@ -165,11 +175,14 @@ def check_win(stack_idx: int) -> None:
     Parameters:
     - stack_idx: the index of stack to be checked
     """
+    global my_started
     if my_cards.check_stack(stack_idx): 
-        my_canvas.collect_finished(my_cards.win_set[-1], len(my_cards.win_set))
-    if len(my_cards.win_set) == 4:
-        # TODO Notify user for winning game
-        print("WIN")
+        my_canvas.collect_finished(my_cards.stacks[7 + my_cards.win_num], my_cards.win_num)
+        stretch_stack(stack_idx, len(my_cards.stacks[stack_idx]) - 13)
+    if my_cards.win_num == 4:
+        my_started = False
+        my_canvas.create_text(10, 10, text="YOU WIN!", fill="white", font=("Helvetica 20 bold"), 
+                              anchor="nw", justify="center")
 
 
 # --------------- Commands for the menu ---------------
