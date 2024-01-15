@@ -62,19 +62,29 @@ class CardSet:
         self.stacks.extend([[], [], [], []])
         
         # Shuffle cards into 7 stacks by removing some cards from the end of a stack add them to another stack,
-        for _ in range(5):
+        # but leave at least one card on each stack
+        for _ in range(2):
+            for i in range(6):
+                for j in range(i + 1, 7):
+                    # Move some cards from first stack to second stack
+                    max = len(self.stacks[i]) - 1 if len(self.stacks[i]) > 0 else 0
+                    self.switch_stack(i, j, randint(0, max))
+                    # Move some cards from second stack to first stack
+                    max = len(self.stacks[j]) - 1 if len(self.stacks[j]) > 0 else 0
+                    self.switch_stack(j, i, randint(0, max))
+        
+        # Deal three cards to the 8th stack
+        for i in range(3):
+            self.switch_stack(i, 7, 1)
+            
+        # Shuffle again
+        for _ in range(4):
             for i in range(6):
                 for j in range(i + 1, 7):
                     # Move some cards from first stack to second stack
                     self.switch_stack(i, j, randint(0, len(self.stacks[i])))
                     # Move some cards from second stack to first stack
                     self.switch_stack(j, i, randint(0, len(self.stacks[j])))
-        
-        # Deal three cards to the 8th stack
-        for i in range(3):
-            j = i
-            while len(self.stacks[j]) == 0: j += 1
-            self.switch_stack(j, 7, 1)
         
         # Make sure each stack have 7 cards at the end.
         for i in range(7):
