@@ -142,7 +142,7 @@ def check_win(stack_idx: int) -> None:
     - stack_idx: the index of stack to be checked
     """
     global my_started
-    if my_cards.check_stack(stack_idx): 
+    while my_cards.check_stack(stack_idx): 
         CANVAS.collect_finished(my_cards.stacks[7 + my_cards.win_num], my_cards.win_num)
         stretch_stack(stack_idx, len(my_cards.stacks[stack_idx]) - 13)
     if my_cards.win_num == 4:
@@ -267,13 +267,11 @@ def hint() -> None:
                     if card.value != 1:
                         target = ALL_CARDS[card.type + str(card.value - 1)]
                         if not target.hidden and target.stack_idx != card.stack_idx:
-                            print(card.tag, target.tag)
                             CANVAS.event_generate("<Button-1>", x=target.x, y=target.y)
                             found = True
                             break
         # Look for remaining cards
         if not found and len(my_cards.stacks[7]) > 0:
-            print("click remain")
             CANVAS.event_generate("<Button-1>", x=CARD_X, y=CARD_Y)
             found = True
         # Notify the user there's no more moves
