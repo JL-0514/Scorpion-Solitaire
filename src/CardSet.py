@@ -16,13 +16,19 @@ class CardSet:
         self.cards = cards
         """ All cards with tags """
         self.stacks: list[list[Card]] = []
-        """ Card stacks used to organize cards during the game """
+        """ Card stacks used to organize cards during the game
+        Stack 0-6: dealed cards
+        Stack 7: remaining cards after dealing
+        Stack 8-11: completed set of cards
+        """
         self.old_stacks: list[list[Card]] = []
         """ A copy of the stacks at the beginning of the game """
         self.win_num: int = 0
         """ Number of completed set of cards """
+        self.steps: list[tuple] = []
+        """ List of steps taken by the user in format (src, dest, length), used for undo """
         
-    def switch_stack(self, src: int, dest: int, length: int) -> None:
+    def switch_stack(self, src: int, dest: int, length: int, add_step: bool=True) -> None:
         """
         Assign a sub-stack from source stack to destinatin stack.
         
@@ -39,16 +45,7 @@ class CardSet:
             temp[i].stack_idx = dest
             temp[i].card_idx = c_idx
             c_idx += 1
-
-    def test_shuffle(self) -> None:
-        for i in range(4):
-            s = list(self.cards.values())[i * 13 : (i + 1) * 13]
-            for c in s: c.stack_idx = i
-            self.stacks.append(s)
-        self.stacks.extend([[], [], [], [], [], [], [], []])
-        for i in range(3):
-            self.switch_stack(i, 7, 1)
-        self.switch_stack(3, 4, 1)
+        if add_step: self.steps.append((src, dest, length))
 
     def shuffle_cards(self) -> None:
         """
@@ -68,32 +65,32 @@ class CardSet:
                 for j in range(i + 1, 7):
                     # Move some cards from first stack to second stack
                     max = len(self.stacks[i]) - 1 if len(self.stacks[i]) > 0 else 0
-                    self.switch_stack(i, j, randint(0, max))
+                    self.switch_stack(i, j, randint(0, max), False)
                     # Move some cards from second stack to first stack
                     max = len(self.stacks[j]) - 1 if len(self.stacks[j]) > 0 else 0
-                    self.switch_stack(j, i, randint(0, max))
+                    self.switch_stack(j, i, randint(0, max), False)
         
         # Deal three cards to the 8th stack
         for i in range(3):
-            self.switch_stack(i, 7, 1)
+            self.switch_stack(i, 7, 1, False)
             
         # Shuffle again
         for _ in range(4):
             for i in range(6):
                 for j in range(i + 1, 7):
                     # Move some cards from first stack to second stack
-                    self.switch_stack(i, j, randint(0, len(self.stacks[i])))
+                    self.switch_stack(i, j, randint(0, len(self.stacks[i])), False)
                     # Move some cards from second stack to first stack
-                    self.switch_stack(j, i, randint(0, len(self.stacks[j])))
+                    self.switch_stack(j, i, randint(0, len(self.stacks[j])), False)
         
         # Make sure each stack have 7 cards at the end.
         for i in range(7):
             if len(self.stacks[i]) > 7:
-                self.switch_stack(i, i + 1, len(self.stacks[i]) - 7)
+                self.switch_stack(i, i + 1, len(self.stacks[i]) - 7, False)
             elif len(self.stacks[i]) < 7:
                 j = i + 1
                 while len(self.stacks[j]) < 7 - len(self.stacks[i]): j += 1
-                self.switch_stack(j, i, 7 - len(self.stacks[i]))
+                self.switch_stack(j, i, 7 - len(self.stacks[i]), False)
     
     def check_stack(self, stack_idx: int) -> bool:
         """
@@ -106,22 +103,22 @@ class CardSet:
         Return:
         Whether there's a completed set
         """
-        finished = len(self.stacks[stack_idx]) > 12
-        if finished:
+        completed = len(self.stacks[stack_idx]) > 12
+        if completed:
             # Check for completeness
             s = self.stacks[stack_idx][len(self.stacks[stack_idx]) - 13:]
             t = s[0].type
             v = 13
             for c in s:
                 if c.type != t or c.value != v:
-                    finished = False
+                    completed = False
                     break
                 v -= 1
             # Collect set
-            if finished:
+            if completed:
                 self.win_num += 1
                 self.switch_stack(stack_idx, self.win_num + 7, 13)
-        return finished
+        return completed
     
     def reset(self, new: bool) -> None:
         """
@@ -131,6 +128,7 @@ class CardSet:
         - new: whether the user is starting a new game.
         """
         self.stacks.clear()
+        self.steps.clear()
         self.win_num = 0
         for c in self.cards.values():
             c.x = CARD_X

@@ -41,7 +41,7 @@ class Card:
                                         .resize((CARD_WIDTH, CARD_HEIGHT), resample=Image.LANCZOS))
         """ Image of the card """
         self.hidden = False
-        """ Whether the card is hidden (facing down) """
+        """ Whether the card is hidden (including the completed set of cards) """
         self.x = CARD_X
         """ X-coordinate of the card """
         self.y = CARD_Y
