@@ -56,6 +56,7 @@ my_started = False
 """ Whether the game has started """
 
 my_no_move = False
+""" Whether there's no more moves """
 
 
 # --------------- Functions for operating the game ---------------
@@ -74,6 +75,7 @@ def deal_cards() -> None:
         for x in my_cards.old_stacks: my_cards.stacks.append(x.copy())
     else: 
         my_cards.shuffle_cards()
+        #my_cards.test_shuffle()
         for x in my_cards.stacks: my_cards.old_stacks.append(x.copy())
         
     # Hide some cards by displaying the backside of the card
@@ -96,15 +98,16 @@ def shift_card(e, clicked=False) -> None:
     """
     global my_closet
     tags = CANVAS.gettags("current")
-    different_card = len(tags) > 1 and tags[0] != my_closet
-    # Shift previous card down
-    if my_closet != None and (clicked or different_card or len(tags) < 2):
-        ALL_CARDS[my_closet].move_id = CANVAS.move(my_closet, 0, H_GAP - 5)
-        my_closet = None
-    # shift next card up
-    if len(tags) > 1 and different_card and not ALL_CARDS[tags[0]].hidden and not clicked:
-        my_closet = tags[0]
-        ALL_CARDS[my_closet].move_id = CANVAS.move(my_closet, 0, -(H_GAP - 5))
+    if "NoMove" not in tags:
+        different_card = len(tags) > 1 and tags[0] != my_closet
+        # Shift previous card down
+        if my_closet != None and (clicked or different_card or len(tags) < 2):
+            ALL_CARDS[my_closet].move_id = CANVAS.move(my_closet, 0, H_GAP - 5)
+            my_closet = None
+        # shift next card up
+        if len(tags) > 1 and different_card and not ALL_CARDS[tags[0]].hidden and not clicked:
+            my_closet = tags[0]
+            ALL_CARDS[my_closet].move_id = CANVAS.move(my_closet, 0, -(H_GAP - 5))
 
 def shrink_stack(stack_idx: int, old_len: int) -> None:
     """
@@ -233,12 +236,46 @@ def new_or_restart(new: bool) -> None:
     my_no_move = False
 
 def undo() -> None:
+    """
+    Undo previous step
+    """
     global my_no_move
     if my_started and len(my_cards.steps) > 0:
-        # Undo remaining
-        # Undo completed set
-        # Undo regular move
-        pass
+        if my_no_move:     # Delete text for no more moves
+            my_no_move = False
+            CANVAS.delete("NoMove")
+        step = my_cards.steps.pop()
+        if step[0] == 7:    # Undo click on the remaining cards
+            three = [step, my_cards.steps.pop(), my_cards.steps.pop()]
+            for i in range(3):
+                step = three[i]
+                card = my_cards.stacks[step[1]][-1]
+                card.hidden = True
+                CANVAS.itemconfig(card.tag, image=BACKSIDE_IMAGE)
+                my_cards.switch_stack(step[1], 7, 1, False)
+                move_x = (CARD_X - card.x) // FRAME_RATE
+                move_y = (CARD_Y - card.y) // FRAME_RATE
+                CANVAS.move_card(card, CARD_X, CARD_Y, move_x, move_y)
+                stretch_stack(step[1], len(my_cards.stacks[step[1]]) + 1)
+        else:   # Undo regular steps
+            if step[3]:  # Hide the card if it's hidden in previous step
+                    hide = my_cards.stacks[step[0]][-1]
+                    hide.hidden = True
+                    CANVAS.itemconfig(hide.tag, image=BACKSIDE_IMAGE)
+            temp = my_cards.stacks[step[1]][len(my_cards.stacks[step[1]]) - step[2]:]
+            if step[1] > 7:     # If cards is moved a completed set
+                my_cards.win_num -= 1
+                my_cards.stacks[step[1]]
+                for c in temp: c.hidden = False
+            temp = my_cards.stacks[step[1]][len(my_cards.stacks[step[1]]) - step[2]:]
+            my_cards.switch_stack(step[1], step[0], step[2], False)
+            gap = (H_GAP * MAX_IN_STACK) // (len(my_cards.stacks[step[0]]) - step[2]) \
+                if len(my_cards.stacks[step[0]]) - step[2] > MAX_IN_STACK else H_GAP
+            for c in temp:
+                CANVAS.start_move_card(c, gap)
+            stretch_stack(step[1], len(my_cards.stacks[step[1]]) + step[2])
+            shrink_stack(step[0], len(my_cards.stacks[step[0]]) - step[2])
+            if step[1] > 7: undo()
 
 def hint() -> None:
     """

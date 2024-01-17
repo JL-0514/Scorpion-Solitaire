@@ -1,7 +1,7 @@
 from Card import *
 from tkinter import Canvas, Tk
 
-FRAME_RATE = 10
+FRAME_RATE = 8
 """ Image move every n millionseconds when moving cards to destination position """
 
 class GameCanvas(Canvas):

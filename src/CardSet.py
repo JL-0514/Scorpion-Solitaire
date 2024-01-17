@@ -25,7 +25,7 @@ class CardSet:
         """ A copy of the stacks at the beginning of the game """
         self.win_num: int = 0
         """ Number of completed set of cards """
-        self.steps: list[tuple] = []
+        self.steps: list[tuple[int, int, int, bool]] = []
         """ List of steps taken by the user in format (src, dest, length), used for undo """
         
     def switch_stack(self, src: int, dest: int, length: int, add_step: bool=True) -> None:
@@ -45,7 +45,8 @@ class CardSet:
             temp[i].stack_idx = dest
             temp[i].card_idx = c_idx
             c_idx += 1
-        if add_step: self.steps.append((src, dest, length))
+        is_hidden = self.stacks[src][-1].hidden if len(self.stacks[src]) > 0 else False
+        if add_step: self.steps.append((src, dest, length, is_hidden))
 
     def shuffle_cards(self) -> None:
         """
@@ -149,3 +150,14 @@ class CardSet:
                 c = self.old_stacks[7][i]
                 c.stack_idx = 7
                 c.card_idx = i
+    
+    # NOTE Method used for testing
+    def test_shuffle(self) -> None:
+        for i in range(4):
+            s = list(self.cards.values())[i * 13 : (i + 1) * 13]
+            for c in s: c.stack_idx = i
+            self.stacks.append(s)
+        self.stacks.extend([[], [], [], [], [], [], [], []])
+        for i in range(3):
+            self.switch_stack(i, 7, 1, False)
+        self.switch_stack(3, 4, 1, False)
