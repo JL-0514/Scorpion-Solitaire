@@ -103,7 +103,7 @@ def shift_card(e, clicked=False) -> None:
     """
     global my_closet
     tags = CANVAS.gettags("current")
-    if "NoMove" not in tags:
+    if "NoMove" not in tags and not my_dragging:
         different_card = len(tags) > 1 and tags[0] != my_closet
         # Shift previous card down
         if my_closet != None and (clicked or different_card or len(tags) < 2):
@@ -239,7 +239,6 @@ def drag_card(e) -> None:
             CANVAS.lift(c.tag)
             c.move_id = CANVAS.moveto(c.tag, c.x, c.y)
 
-# BUG Sometimes cards doesn't move to correct position (but very close).
 def release_card(e) -> None:
     """
     After release the cards from drag or click evetn, move cards to either their destination
@@ -248,7 +247,6 @@ def release_card(e) -> None:
     global my_dragging, my_drag_cards, my_closet
     # Release from drag
     if my_dragging and my_drag_cards != None:
-        my_dragging = False
         # Determine whether the move is valid and, if so, witch stack
         old_stack = my_drag_cards[0].stack_idx
         dest_stack: int = (e.x - CARD_X) // (CARD_WIDTH + V_GAP)
@@ -264,12 +262,8 @@ def release_card(e) -> None:
             gap = (H_GAP * MAX_IN_STACK) // len(my_cards.stacks[my_drag_cards[0].stack_idx]) \
                   if len(my_cards.stacks[my_drag_cards[0].stack_idx]) > MAX_IN_STACK else H_GAP
             for c in my_drag_cards: CANVAS.start_move_card(c, gap)
-        # Place the first card back to corrent position
-        my_closet = None
-        dest_x = my_drag_cards[0].x
-        dest_y = my_drag_cards[0].y
-        my_drag_cards[0].move_id = CANVAS.moveto(my_drag_cards[0].tag, dest_x, dest_y)
         my_drag_cards = None
+        my_dragging = False
     # Release from clicking the remaining cards
     elif e.y >= CARD_Y and e.y <= CARD_Y + CARD_HEIGHT and e.x >= CARD_X and e.x <= CARD_X + CARD_WIDTH:
         click_remaining()
