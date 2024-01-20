@@ -261,10 +261,10 @@ def release_card(e) -> None:
                 click_card(True, my_drag_cards[0], target)
         # If the move is invalid, move cards back to teir original stack
         if old_stack == my_drag_cards[0].stack_idx:
-            current = my_cards.stacks[my_drag_cards[0].stack_idx]
-            gap = current[1].y - current[0].y if len(current) > 1 else H_GAP
+            gap = (H_GAP * MAX_IN_STACK) // len(my_cards.stacks[my_drag_cards[0].stack_idx]) \
+                  if len(my_cards.stacks[my_drag_cards[0].stack_idx]) > MAX_IN_STACK else H_GAP
             for c in my_drag_cards: CANVAS.start_move_card(c, gap)
-        # # Place the first card back to corrent position
+        # Place the first card back to corrent position
         my_closet = None
         dest_x = my_drag_cards[0].x
         dest_y = my_drag_cards[0].y
