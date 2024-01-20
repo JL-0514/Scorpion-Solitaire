@@ -1,1 +1,3 @@
-A scorpion solitarie game made in Python.
+A scorpion solitarie game written in Python.
+
+Last update: January 19, 2024
