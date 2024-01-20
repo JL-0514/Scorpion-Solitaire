@@ -18,18 +18,18 @@ class GameCanvas(Canvas):
         """
         super().__init__(root)
     
-    def create_cards(self, cards:list[Card], clicked=None, drag=None, release=None) -> None:
+    def create_cards(self, cards:list[Card], drag=None, release=None) -> None:
         """
         Create a list of cards on the canvas
         
         Parameters:
         - cards: list of cards
-        - action: action to take when the card is clicked
+        - drag: action called when a card is being dragging
+        - release: action called when a card is release from drag or click
         """
         self.delete("all")
         for card in cards:
             self.create_image(card.x, card.y, image=card.image, tag=card.tag, anchor="nw")
-            self.tag_bind(card.tag, "<Button-1>", clicked)
             self.tag_bind(card.tag, "<B1-Motion>", drag)
             self.tag_bind(card.tag, "<ButtonRelease-1>", release)
     

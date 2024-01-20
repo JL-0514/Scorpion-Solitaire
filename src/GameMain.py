@@ -3,6 +3,8 @@ A scorpion solitarie game.
 """
 
 __author__ = "Jiameng Li"
+__version__= "1.0"
+__date__= "19 January 2024"
 
 import ctypes
 from Card import *
@@ -52,6 +54,9 @@ my_closet: str = None
 my_dragging = False
 """ Whether the user is dragging cards """
 
+my_drag_cards: list[Card] = None
+""" The list of cards being dragging """
+
 my_started = False
 """ Whether the game has started """
 
@@ -68,7 +73,7 @@ def deal_cards() -> None:
     Else, shuffle cards.
     """   
     # Create cards on canvas
-    CANVAS.create_cards(ALL_CARDS.values(), click_card, drag_card, confirm_drag)
+    CANVAS.create_cards(ALL_CARDS.values(), drag_card, release_card)
     
     # Shuffle cards      
     if len(my_cards.old_stacks) > 0: 
@@ -155,12 +160,11 @@ def check_win(stack_idx: int) -> None:
 
 # --------------- Actions that response to mouse events ---------------
 
-def click_remaining(e) -> None:
+def click_remaining() -> None:
     """
     Action when the stack of remaining cards on the topleft corner is clicked.
     """
-    if my_started and len(my_cards.stacks[7]) == 3 and  len(CANVAS.gettags("current")) > 1 \
-            and e.y >= CARD_Y and e.y <= CARD_Y + CARD_HEIGHT and e.x >= CARD_X and e.x <= CARD_X + CARD_WIDTH:
+    if my_started and len(my_cards.stacks[7]) == 3 and len(CANVAS.gettags("current")) > 1:
         for i in reversed(range(3)):
             c = my_cards.stacks[7][i]
             c.hidden = False
@@ -171,7 +175,7 @@ def click_remaining(e) -> None:
             CANVAS.start_move_card(c, gap)
             shrink_stack(i, len(my_cards.stacks[i]) - 1)
 
-def click_card(e) -> None:
+def click_card(checked=False, card=None, target=None, first_empty=0) -> None:
     """
     Check whether the clicked card is movable. If so, move the clicked card and cards below it
     to the right stack.
@@ -180,44 +184,98 @@ def click_card(e) -> None:
        and has value exactly one greater than the clicked card.
     2. The clicked card has value 13 and there's at least one empty stack. In this case,
        move to the leftmost empty stack.
+       
+    Parameters:
+    - checked: whether the move has been checked to be valid. If true, it must specify the parameter card and
+               either target or first empty
+    - card: the card clicked (or dragged)
+    - target: the target card that the clicked card will be moving toward to
+    - first_empty: the index of first empty stack from left to right
     """
-    if e.y > CARD_Y + CARD_HEIGHT:
+    if not checked:
         card = ALL_CARDS[CANVAS.gettags("current")[0]]
         target = ALL_CARDS[card.type + str(card.value + 1)] if card.value != 13 else None
         first_empty = 0
         while len(my_cards.stacks[first_empty]) != 0 and first_empty < 7: first_empty += 1
-        if (target != None and not target.hidden and target.stack_idx != card.stack_idx \
-                and target.card_idx == len(my_cards.stacks[target.stack_idx]) - 1) \
-                or (card.value == 13 and first_empty < 7):
-            old_s = card.stack_idx
-            new_s = target.stack_idx if target != None else first_empty
-            length = len(my_cards.stacks[new_s])
-            gap = (H_GAP * MAX_IN_STACK) // len(my_cards.stacks[new_s]) \
-                if len(my_cards.stacks[new_s]) > MAX_IN_STACK else H_GAP
-            temp = my_cards.stacks[old_s][card.card_idx:]
-            # Move cards to the right stack
-            my_cards.switch_stack(old_s, new_s, len(temp))
-            shift_card(None, True)
-            for c in temp: 
-                CANVAS.start_move_card(c, gap)
-            # Reveal the hidden card after move, if any
-            reveal = my_cards.stacks[old_s][-1] if len(my_cards.stacks[old_s]) > 0 else None
-            if reveal != None and reveal.hidden:
-                reveal.hidden = False
-                CANVAS.itemconfig(reveal.tag, image=reveal.image)
-            # Stretch or shrink stacks to fit window
-            shrink_stack(new_s, length)
-            stretch_stack(old_s, len(my_cards.stacks[old_s]) + len(temp))
-            check_win(new_s)
+    if checked or ((target != None and not target.hidden and target.stack_idx != card.stack_idx \
+            and target.card_idx == len(my_cards.stacks[target.stack_idx]) - 1) \
+            or (card.value == 13 and first_empty < 7)):
+        old_s = card.stack_idx
+        new_s = target.stack_idx if target != None else first_empty
+        length = len(my_cards.stacks[new_s])
+        gap = (H_GAP * MAX_IN_STACK) // len(my_cards.stacks[new_s]) \
+            if len(my_cards.stacks[new_s]) > MAX_IN_STACK else H_GAP
+        temp = my_cards.stacks[old_s][card.card_idx:]
+        # Move cards to the right stack
+        my_cards.switch_stack(old_s, new_s, len(temp))
+        shift_card(None, True)
+        for c in temp: 
+            CANVAS.start_move_card(c, gap)
+        # Reveal the hidden card after move, if any
+        reveal = my_cards.stacks[old_s][-1] if len(my_cards.stacks[old_s]) > 0 else None
+        if reveal != None and reveal.hidden:
+            reveal.hidden = False
+            CANVAS.itemconfig(reveal.tag, image=reveal.image)
+        # Stretch or shrink stacks to fit window
+        shrink_stack(new_s, length)
+        stretch_stack(old_s, len(my_cards.stacks[old_s]) + len(temp))
+        check_win(new_s)
                     
 def drag_card(e) -> None:
-    global my_dragging
-    my_dragging = True
+    """
+    Move cards when the mouse is dragging. If a card moves, other cards below it in the same
+    stack move along with it. Hidden cards are not movable.
+    """
+    global my_dragging, my_drag_cards
+    if not my_dragging:
+        my_dragging = True
+        card = ALL_CARDS[CANVAS.gettags("current")[0]]
+        my_drag_cards = my_cards.stacks[card.stack_idx][card.card_idx:] if not card.hidden else None
+    if my_drag_cards != None:
+        for i in range(len(my_drag_cards)):
+            c = my_drag_cards[i]
+            c.x = e.x - CARD_WIDTH // 2
+            c.y = e.y + i * H_GAP
+            CANVAS.lift(c.tag)
+            c.move_id = CANVAS.moveto(c.tag, c.x, c.y)
 
-def confirm_drag(e) -> None:
-    global my_dragging
-    if my_dragging:
+# BUG Sometimes cards doesn't move to correct position (but very close).
+def release_card(e) -> None:
+    """
+    After release the cards from drag or click evetn, move cards to either their destination
+    stack or original stack.
+    """
+    global my_dragging, my_drag_cards, my_closet
+    # Release from drag
+    if my_dragging and my_drag_cards != None:
         my_dragging = False
+        # Determine whether the move is valid and, if so, witch stack
+        old_stack = my_drag_cards[0].stack_idx
+        dest_stack: int = (e.x - CARD_X) // (CARD_WIDTH + V_GAP)
+        if (len(my_cards.stacks[dest_stack]) == 0):
+            if my_drag_cards[0].value == 13: 
+                click_card(True, my_drag_cards[0], None, dest_stack)
+        else:
+            target = my_cards.stacks[dest_stack][-1]
+            if my_drag_cards[0].type == target.type and my_drag_cards[0].value == target.value - 1:
+                click_card(True, my_drag_cards[0], target)
+        # If the move is invalid, move cards back to teir original stack
+        if old_stack == my_drag_cards[0].stack_idx:
+            current = my_cards.stacks[my_drag_cards[0].stack_idx]
+            gap = current[1].y - current[0].y if len(current) > 1 else H_GAP
+            for c in my_drag_cards: CANVAS.start_move_card(c, gap)
+        # # Place the first card back to corrent position
+        my_closet = None
+        dest_x = my_drag_cards[0].x
+        dest_y = my_drag_cards[0].y
+        my_drag_cards[0].move_id = CANVAS.moveto(my_drag_cards[0].tag, dest_x, dest_y)
+        my_drag_cards = None
+    # Release from clicking the remaining cards
+    elif e.y >= CARD_Y and e.y <= CARD_Y + CARD_HEIGHT and e.x >= CARD_X and e.x <= CARD_X + CARD_WIDTH:
+        click_remaining()
+    # Release from clicking a card in visible stack
+    elif e.y > CARD_Y + CARD_HEIGHT:
+        click_card()
 
 
 # --------------- Commands for the menu ---------------
@@ -332,7 +390,6 @@ def main() -> None:
     # Set up canvas
     CANVAS.pack(expand=True, fill=BOTH)
     CANVAS.config(background="#3B9212")
-    CANVAS.bind("<Button-1>", click_remaining)
     CANVAS.bind("<Motion>", shift_card)
     CANVAS.create_image(CARD_X, CARD_Y, image=BACKSIDE_IMAGE, anchor="nw")
 
