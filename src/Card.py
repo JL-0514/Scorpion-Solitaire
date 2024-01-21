@@ -37,7 +37,7 @@ class Card:
         """ Value of the card """
         self.tag = type + str(value)
         """ Tag of the card used to get the card from the canvas """
-        self.image = ImageTk.PhotoImage(Image.open(f"src/playing_cards/{type}{str(value)}.png")
+        self.image = ImageTk.PhotoImage(Image.open(f"src/img/{type}{str(value)}.png")
                                         .resize((CARD_WIDTH, CARD_HEIGHT), resample=Image.LANCZOS))
         """ Image of the card """
         self.hidden = False

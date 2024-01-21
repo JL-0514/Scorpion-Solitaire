@@ -150,14 +150,3 @@ class CardSet:
                 c = self.old_stacks[7][i]
                 c.stack_idx = 7
                 c.card_idx = i
-    
-    # NOTE Method used for testing
-    def test_shuffle(self) -> None:
-        for i in range(4):
-            s = list(self.cards.values())[i * 13 : (i + 1) * 13]
-            for c in s: c.stack_idx = i
-            self.stacks.append(s)
-        self.stacks.extend([[], [], [], [], [], [], [], []])
-        for i in range(3):
-            self.switch_stack(i, 7, 1, False)
-        self.switch_stack(3, 4, 1, False)

@@ -31,7 +31,7 @@ WIN_WIDTH = 940
 WIN_HEIGHT = 900
 """ Height of the game window """
 
-BACKSIDE_IMAGE = ImageTk.PhotoImage(Image.open("src/playing_cards/backside.png")
+BACKSIDE_IMAGE = ImageTk.PhotoImage(Image.open("src/img/backside.png")
                                     .resize((CARD_WIDTH, CARD_HEIGHT), resample=Image.LANCZOS))
 """ Image of the back side of the playing card """
 
