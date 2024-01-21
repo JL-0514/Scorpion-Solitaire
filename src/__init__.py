@@ -1,5 +1,5 @@
 __all__=[
-    'Card.py',
+    'Card',
     'CardSet',
     'GameCanvas',
     'GameMain'
