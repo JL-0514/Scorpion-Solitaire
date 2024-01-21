@@ -5,6 +5,7 @@ A scorpion solitarie game.
 __author__ = "Jiameng Li"
 __version__= "1.0"
 __date__= "19 January 2024"
+__name__="__main__"
 
 import ctypes
 from Card import *
@@ -175,7 +176,7 @@ def click_remaining() -> None:
     """
     Action when the stack of remaining cards on the topleft corner is clicked.
     """
-    if my_started and len(my_cards.stacks[7]) == 3 and len(CANVAS.gettags("current")) > 1:
+    if my_started and len(my_cards.stacks[7]) == 3:
         for i in reversed(range(3)):
             c = my_cards.stacks[7][i]
             c.hidden = False
@@ -293,11 +294,14 @@ def new_or_restart(new: bool) -> None:
     Parameters:
     - new: whether the user is starting a new game.
     """
-    global my_started, my_no_move
+    global my_started, my_no_move, my_closet, my_drag_cards, my_dragging
     my_cards.reset(new)
     deal_cards()
     my_started = True
     my_no_move = False
+    my_closet = None
+    my_drag_cards = None
+    my_dragging = False
 
 def undo() -> None:
     """
@@ -356,24 +360,24 @@ def hint() -> None:
                 dest = 0
                 while len(my_cards.stacks[dest]) != 0 and dest < 7: dest += 1
                 if dest < 7:
-                    target = ALL_CARDS[tag]
-                    CANVAS.event_generate("<Button-1>", x=target.x, y=target.y)
+                    card = ALL_CARDS[tag]
+                    click_card(True, card, None, dest)
                     found = True
                     break
         # Look for move in stacks from left to right
         if not found:
             for i in range(7):
                 if len(my_cards.stacks[i]) > 0:
-                    card = my_cards.stacks[i][-1]
-                    if card.value != 1:
-                        target = ALL_CARDS[card.type + str(card.value - 1)]
-                        if not target.hidden and target.stack_idx != card.stack_idx:
-                            CANVAS.event_generate("<Button-1>", x=target.x, y=target.y)
+                    target = my_cards.stacks[i][-1]
+                    if target.value != 1:
+                        card = ALL_CARDS[target.type + str(target.value - 1)]
+                        if not card.hidden and card.stack_idx != target.stack_idx:
+                            click_card(True, card, target)
                             found = True
                             break
         # Look for remaining cards
         if not found and len(my_cards.stacks[7]) > 0:
-            CANVAS.event_generate("<Button-1>", x=CARD_X, y=CARD_Y)
+            click_remaining()
             found = True
         # Notify the user there's no more moves
         if not found:
