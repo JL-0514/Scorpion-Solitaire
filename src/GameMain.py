@@ -94,25 +94,36 @@ def deal_cards() -> None:
         for j in range(len(my_cards.stacks[i])):
             CANVAS.start_move_card(my_cards.stacks[i][j])
 
-def shift_card(e, clicked=False) -> None:
+def hover_card(e) -> None:
+    """
+    Make the card shift up after hovering the card for 1/5 second.
+    """
+    x = e.x
+    y = e.y
+    CANVAS.after(200, lambda: shift_card(e, x, y))
+
+def shift_card(e, x=None, y=None, clicked=False) -> None:
     """
     Shift the card up when the mouse hovering the card, and down when leave.
     
     Parameters:
+    - x: x coordinate of the mouse 1/5 second ago.
+    - y: y coordinate of the mouse 1/5 second ago.
     - clicked: whether the card is clicked and is moving to another stack. In this case, always shift down.
     """
     global my_closet
-    tags = CANVAS.gettags("current")
-    if "NoMove" not in tags and not my_dragging:
-        different_card = len(tags) > 1 and tags[0] != my_closet
-        # Shift previous card down
-        if my_closet != None and (clicked or different_card or len(tags) < 2):
-            ALL_CARDS[my_closet].move_id = CANVAS.move(my_closet, 0, H_GAP - 5)
-            my_closet = None
-        # shift next card up
-        if len(tags) > 1 and different_card and not ALL_CARDS[tags[0]].hidden and not clicked:
-            my_closet = tags[0]
-            ALL_CARDS[my_closet].move_id = CANVAS.move(my_closet, 0, -(H_GAP - 5))
+    if clicked or e == None or (e.x == x and e.y == y):
+        tags = CANVAS.gettags("current")
+        if "NoMove" not in tags:
+            different_card = len(tags) > 1 and tags[0] != my_closet
+            # Shift previous card down
+            if my_closet != None and (clicked or different_card or len(tags) < 2) and not my_dragging:
+                ALL_CARDS[my_closet].move_id = CANVAS.move(my_closet, 0, H_GAP - 5)
+                my_closet = None
+            # shift next card up
+            if len(tags) > 1 and different_card and not ALL_CARDS[tags[0]].hidden and not clicked and not my_dragging:
+                my_closet = tags[0]
+                ALL_CARDS[my_closet].move_id = CANVAS.move(my_closet, 0, -(H_GAP - 5))
 
 def shrink_stack(stack_idx: int, old_len: int) -> None:
     """
@@ -226,9 +237,10 @@ def drag_card(e) -> None:
     Move cards when the mouse is dragging. If a card moves, other cards below it in the same
     stack move along with it. Hidden cards are not movable.
     """
-    global my_dragging, my_drag_cards
+    global my_dragging, my_drag_cards, my_closet
     if not my_dragging:
         my_dragging = True
+        my_closet = None
         card = ALL_CARDS[CANVAS.gettags("current")[0]]
         my_drag_cards = my_cards.stacks[card.stack_idx][card.card_idx:] if not card.hidden else None
     if my_drag_cards != None:
@@ -244,7 +256,7 @@ def release_card(e) -> None:
     After release the cards from drag or click evetn, move cards to either their destination
     stack or original stack.
     """
-    global my_dragging, my_drag_cards, my_closet
+    global my_dragging, my_drag_cards
     # Release from drag
     if my_dragging and my_drag_cards != None:
         # Determine whether the move is valid and, if so, witch stack
@@ -384,7 +396,7 @@ def main() -> None:
     # Set up canvas
     CANVAS.pack(expand=True, fill=BOTH)
     CANVAS.config(background="#3B9212")
-    CANVAS.bind("<Motion>", shift_card)
+    CANVAS.bind("<Motion>", hover_card)
     CANVAS.create_image(CARD_X, CARD_Y, image=BACKSIDE_IMAGE, anchor="nw")
 
     # Set up menu
